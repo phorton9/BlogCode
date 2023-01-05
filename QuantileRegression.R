@@ -3,6 +3,9 @@ library(ggplot2)
 library(quantregForest)
 library(stats)
 
+## Set alpha value
+alpha <- 0.1
+
 ##Generate data
 generator <- function(x) {
   output <- rep(0, length(x))
@@ -25,9 +28,9 @@ colnames(x_test) <- c('X')
 ##Train quantile regressor
 rf <- quantregForest(x=x_train, y=y_train, ntree = 500, maxnodes = 5)
 
-
-interval_low<-predict(rf, x_test, what=0.05)
-interval_high<-predict(rf, x_test, what=0.95)
+## Quantiles for 1-alpha interval
+interval_low<-predict(rf, x_test, what=alpha/2)
+interval_high<-predict(rf, x_test, what=1-alpha/2)
 
 
 interval_low <- c(interval_low)
@@ -51,8 +54,8 @@ points(sample_data$x, sample_data$high, col = 'green')
 ##Calculate residuals relative to quantiles
 sample_data$E <- pmax(sample_data$low - sample_data$y,sample_data$y - sample_data$high)
 
-##Calculate Q coefficient for 95
-Q <- 0.9 * (1+1/1000)*quantile(sample_data$E, probs = c(0.90))
+##Calculate Q coefficient for 1-alpha coverage
+Q <- (1-alpha) * (1+1/1000)*quantile(sample_data$E, probs = c(1-alpha))
 
 ##New prediction intervals
 sample_data$lowQ <- sample_data$low - Q
@@ -64,8 +67,6 @@ plot(sample_data$x, sample_data$y, main = "Test Data With Updated Prediction Int
 lines(sample_data$x, sample_data$lowQ, col = 'red', lwd=4.0)
 lines(sample_data$x, sample_data$highQ, col = 'green', lwd=4.0)
 
-lines(sample_data$x, sample_data$low, col = 'blue', lwd=2.0)
-lines(sample_data$x, sample_data$high, col = 'yellow', lwd=2.0)
 
 ##Percent of test observations outside of 
 mean((sample_data$y < sample_data$low) | (sample_data$y > sample_data$high))*100
@@ -74,11 +75,11 @@ mean((sample_data$y < sample_data$low) | (sample_data$y > sample_data$high))*100
 mean((sample_data$y < sample_data$lowQ) | (sample_data$y > sample_data$highQ))*100
 
 ##
-x_train$oldQLow <- predict(rf, x_train, what=0.05)
-x_train$oldQHigh <- predict(rf, x_train, what=0.95)
+x_train$oldQLow <- predict(rf, x_train, what=alpha/2)
+x_train$oldQHigh <- predict(rf, x_train, what=1-alpha/2)
 
-newQLow<-predict(rf, x_train, what=0.05)-Q
-newQHigh<-predict(rf, x_train, what=0.95)+Q
+newQLow<-predict(rf, x_train, what=alpha/2)-Q
+newQHigh<-predict(rf, x_train, what=1-alpha/2)+Q
 
 x_train$newQLow <- newQLow
 x_train$newQHigh <- newQHigh
@@ -130,8 +131,8 @@ sample_data <- sample_data[order(sample_data$x),]
 ##Calculate residuals relative to quantiles
 sample_data$E <- pmax(sample_data$low - sample_data$y,sample_data$y - sample_data$high)
 
-##Calculate Q coefficient for 95
-Q <- 0.9 * (1+1/n)*quantile(sample_data$E, probs = c(0.90))
+##Calculate Q coefficient for alpha
+Q <-(1- alpha) * (1+1/n)*quantile(sample_data$E, probs = c(1-alpha))
 
 ##New prediction intervals
 sample_data$lowQ <- sample_data$low - Q
